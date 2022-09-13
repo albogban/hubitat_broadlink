@@ -18,6 +18,7 @@ limitations under the License.
 
 Change history:
 
+0.9.7 - albogban - Fix javax.crypto.IllegalBlockSizeException: Input length must be multiple of 16 when decrypting with padded cipher.
 0.9.6 - tomw - Bugfixes and improved error reporting.
 0.9.5 - tomw - Added ping for RM3 devices as keep-alive.
 0.9.4 - tomw - Added 'sequence' scripting feature.
@@ -977,7 +978,7 @@ import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.Cipher
 
-def aes_cbc(data, op, key, iv)
+/*def aes_cbc(data, op, key, iv)
 {
     // thanks: https://community.hubitat.com/t/groovy-aes-encryption-driver/31556
     
@@ -992,6 +993,40 @@ def aes_cbc(data, op, key, iv)
     cipher.init(op == "enc" ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, aKey, aIv)
     
     return cipher.doFinal(data)
+}
+*/
+def aes_cbc(data, op, key, iv)
+{
+    // thanks: https://community.hubitat.com/t/groovy-aes-encryption-driver/31556
+    try {
+    
+        def cipher = Cipher.getInstance("AES/CBC/NoPadding", "SunJCE")
+      
+        byte[] keyBytes = HexUtils.hexStringToByteArray(key)
+    
+        SecretKeySpec aKey = new SecretKeySpec(keyBytes, "AES")
+        
+        byte[] ivBytes = HexUtils.hexStringToByteArray(iv)
+    
+        IvParameterSpec aIv = new IvParameterSpec(ivBytes)
+    
+        cipher.init(op == "enc" ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, aKey, aIv)
+    
+        if (data instanceof List) { data = arrayListToByteArray(data) }
+	
+        if (data instanceof String) { data = data.getBytes() }
+    
+        byte[] original = cipher.doFinal(data)
+        
+        return original
+
+    } catch (e){
+    
+        log_debug("BroadLink Remote AES Encrypt: Caught Execption [${e}]")
+    
+    }
+    
+    return null
 }
 
 def appendByteArr(a, b)
